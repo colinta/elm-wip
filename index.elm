@@ -1,8 +1,7 @@
 import Debug exposing (log)
-import Html exposing (Html)
+import Html exposing (Html, text, div, p, i)
 import Date
-import Svg exposing (..)
-import Svg.Attributes exposing (..)
+import Mouse
 import Time exposing (Time, second)
 
 
@@ -18,72 +17,50 @@ main =
 
 -- MODEL
 
-type alias Model = Time
+type alias Model = {
+    time : Maybe Time,
+    position : Maybe Mouse.Position
+  }
 
 
 init : (Model, Cmd Msg)
 init =
-  (0, Cmd.none)
+  ({ time = Nothing, position = Nothing }, Cmd.none)
 
 
 -- UPDATE
 
 type Msg
-  = Tick Time
+  = MouseMove Mouse.Position
+  | Tick Time
 
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
-    Tick newTime ->
-      (newTime, Cmd.none)
+    MouseMove position ->
+      ({ model | position = Just position }, Cmd.none)
+    Tick time ->
+      ({ model | time = Just time}, Cmd.none)
 
 
 -- SUBSCRIPTIONS
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-  Time.every second Tick
+  Sub.batch [Time.every second Tick, Mouse.moves MouseMove]
 
 
 -- VIEW
 
-type alias Point = { x : Float, y : Float }
-type alias PointStr = { x : String, y : String }
-
-offset : Float -> Float -> (Float, Float) -> (Float, Float)
-offset dx dy point =
-  let
-    (x, y) = point
-  in
-    (x + dx, y + dy)
-
-pointStr : (Float, Float) -> PointStr
-pointStr point =
-  let
-    (x, y) = point
-  in
-  { x = toString x, y = toString y }
-
 view : Model -> Html Msg
-view time =
+view model =
   let
-    date = Date.fromTime time
-    secondsAngle =
-      turns (toFloat <| Date.second date) / 60 - pi / 2
-    minutesAngle =
-      turns (toFloat <| Date.minute date) / 60 - pi / 2
-    hoursAngle =
-      turns (toFloat <| Date.hour date) / 12 - pi / 2
-
-    seconds = pointStr <| offset 50 50 <| fromPolar (50, secondsAngle)
-    minutes = pointStr <| offset 50 50 <| fromPolar (50, minutesAngle)
-    hours = pointStr <| offset 50 50 <| fromPolar (40, hoursAngle)
-
+    time = case model.time of
+      Just t -> p [] [text "The time is ", i [] [text (toString t)]]
+      Nothing -> text ""
+    mouse = case model.position of
+      Just pos -> p [] [text ("{" ++ (toString pos.x) ++ "," ++ (toString pos.y) ++ "}")]
+      Nothing -> text ""
   in
-    svg [ viewBox "0 0 100 100", width "300px" ]
-      [ circle [ cx "50", cy "50", r "45", fill "#0B79CE" ] []
-      , line [ x1 "50", y1 "50", x2 seconds.x, y2 seconds.y, stroke "#E31400" ] []
-      , line [ x1 "50", y1 "50", x2 minutes.x, y2 minutes.y, stroke "#A1A1A1" ] []
-      , line [ x1 "50", y1 "50", x2 hours.x, y2 hours.y, stroke "#FFFFFF" ] []
-      ]
+    div [] [time, mouse]
